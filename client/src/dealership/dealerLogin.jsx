@@ -54,13 +54,9 @@ const DealershipSignIn = () => {
     const userSnapshot = await getDoc(userDoc);
 
     if (userSnapshot.exists()) {
-      navigate('/dealershipDashboard'); // Redirect to home if user exists
+      navigate('/dealership/dashboard'); // Redirect to home if user exists
     } else {
-      await setDoc(userDoc, {
-        userID: user.email,
-        isDealer: true,
-      });
-      navigate('/dealershipDashboard'); // Redirect after creating user document
+      navigate('/'); // Redirect after creating user document
     }
   };
 
@@ -77,9 +73,10 @@ const DealershipSignIn = () => {
       await setDoc(doc(db, 'dealershipsInfo', user.email), {
         userID: user.email,
         isDealer: true,
+        isProfileCompleted: false,
       });
 
-      navigate('/dealershipDashboard'); // Redirect to home page on successful sign-up
+      navigate('/dealership/dashboard'); // Redirect to home page on successful sign-up
     } catch (error) {
       setLoading(false);
       console.error("Sign-up error:", error);

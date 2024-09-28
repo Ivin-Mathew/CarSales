@@ -28,9 +28,14 @@ const DealershipDashboard = () => {
         const userSnapshot = await getDoc(userDoc);
         if (userSnapshot.exists()) {
           const userData = userSnapshot.data();
-          if (userData.isDealer === 'yes') {
+          if (userData.isDealer === true) {
+            if (userData.isProfileCompleted === false){
+              navigate("/dealership/profile");
+            }
             setLoading(false);
-          } else {
+          }
+          else {
+            
             navigate('/');
           }
         } else {
@@ -76,13 +81,13 @@ const DealershipDashboard = () => {
         <div className="flex gap-5 mb-5">
           <button
             className="px-5 py-2 rounded-lg border border-gray-400 cursor-pointer bg-white transition-colors duration-300 hover:bg-gray-200"
-            onClick={() => navigate('/GarageManagement')}
+            onClick={() => navigate('garageManagement')}
           >
             Garage management
           </button>
           <button
             className="px-5 py-2 rounded-lg border border-gray-400 cursor-pointer bg-white transition-colors duration-300 hover:bg-gray-200"
-            onClick={() => navigate('/AddNewVehicle')}
+            onClick={() => navigate('addNewVehicle')}
           >
             Add new vehicle
           </button>

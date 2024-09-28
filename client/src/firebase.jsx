@@ -5,13 +5,13 @@ import 'firebase/compat/firestore';
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCOecOW3_zgj_wkI5ri6T0x8JvP9isCDlo",
-  authDomain: "test-carsales-f7229.firebaseapp.com",
-  projectId: "test-carsales-f7229",
-  storageBucket: "test-carsales-f7229.appspot.com",
-  messagingSenderId: "406792719903",
-  appId: "1:406792719903:web:f83e342b977120d519cf2a",
-  measurementId: "G-CK40C21S4F"
+  apiKey: "AIzaSyDjA7-DRFvNWdlCMr9Z7r7IU4S41diTH0o",
+  authDomain: "carsalesnew-67ba2.firebaseapp.com",
+  projectId: "carsalesnew-67ba2",
+  storageBucket: "carsalesnew-67ba2.appspot.com",
+  messagingSenderId: "622232900196",
+  appId: "1:622232900196:web:057a25f0221f57b7ca0571",
+  measurementId: "G-HRR86PDL86"
 };
 
 const app = initializeApp(firebaseConfig);

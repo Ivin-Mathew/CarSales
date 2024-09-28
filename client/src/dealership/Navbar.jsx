@@ -17,13 +17,13 @@ const Navbar = () => {
 
   return (
     <nav className="bg-gray-800 p-4 flex justify-between items-center">
-      <div className="text-white text-2xl font-bold" onClick={()=>navigate('/dealershipDashboard')}>
+      <div className="text-white text-2xl font-bold" onClick={()=>navigate('/dealership/dashboard')}>
         websiteName
       </div>
       <div className="flex space-x-4">
-        <Link to="/inventory" className="text-white hover:text-gray-400">Inventory</Link>
-        <Link to="/boost" className="text-white hover:text-gray-400">Boost</Link>
-        <Link to="/profile" className="text-white hover:text-gray-400">Profile</Link>
+        <Link to="/dealership/inventory" className="text-white hover:text-gray-400">Inventory</Link>
+        <Link to="/dealership/boost" className="text-white hover:text-gray-400">Boost</Link>
+        <Link to="/dealership/profile" className="text-white hover:text-gray-400">Profile</Link>
       </div>
       <button 
         onClick={handleSignOut} 

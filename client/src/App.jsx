@@ -6,11 +6,9 @@ import WishList from "./user/wishList";
 import CarDetails from "./user/car-details"; 
 import CompareCars from './user/CompareCars';
 import MakeAnOffer from './user/MakeAnOffer';
-import DealershipDashboard from './dealership/DealershipDashboard';
-import GarageManagement from './dealership/GarageManagement';
-import AddNewVehicle from './dealership/AddNewVehicle';
 import Profile from "./user/userProfile";
 import DealershipSignIn from "./dealership/dealerLogin";
+import DealerRoutes from "./dealership/DealerRoutes";
 
 function App() {
   return (
@@ -27,10 +25,8 @@ function App() {
         <Route path="/profile" element={<Profile />} />
 
         {/* For dealership */}
-        <Route path="/dealershipLogin" element={<DealershipSignIn /> } />
-        <Route path="/garageManagement/*" element={<GarageManagement/>} />  {/* Add the wildcard here */}
-        <Route path="/addNewVehicle" element={<AddNewVehicle/>} />   
-        <Route path="/dealershipDashboard" element={<DealershipDashboard/>} />
+        <Route path="/dealershipLogin" element={<DealershipSignIn />} />
+        <Route path="/dealership/*" element={<DealerRoutes />} />
       </Routes>
     </Router>
   );
