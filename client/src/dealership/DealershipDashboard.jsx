@@ -81,13 +81,13 @@ const DealershipDashboard = () => {
         <div className="flex gap-5 mb-5">
           <button
             className="px-5 py-2 rounded-lg border border-gray-400 cursor-pointer bg-white transition-colors duration-300 hover:bg-gray-200"
-            onClick={() => navigate('garageManagement')}
+            onClick={() => navigate('/dealership/garageManagement')}
           >
             Garage management
           </button>
           <button
             className="px-5 py-2 rounded-lg border border-gray-400 cursor-pointer bg-white transition-colors duration-300 hover:bg-gray-200"
-            onClick={() => navigate('addNewVehicle')}
+            onClick={() => navigate('/dealership/addNewVehicle')}
           >
             Add new vehicle
           </button>

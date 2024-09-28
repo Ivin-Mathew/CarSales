@@ -74,6 +74,8 @@ const DealershipSignIn = () => {
         userID: user.email,
         isDealer: true,
         isProfileCompleted: false,
+        dealerRating : 0,
+        noOfRatings : 0,
       });
 
       navigate('/dealership/dashboard'); // Redirect to home page on successful sign-up

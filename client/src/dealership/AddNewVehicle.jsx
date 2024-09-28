@@ -1,281 +1,255 @@
-import React, { useState } from "react";
-import { addVehicleToFirestore } from "../firestoreService"; // Firestore service for adding vehicle
-import { useNavigate } from "react-router-dom";
-import Navbar from "./Navbar";
+import { useState } from 'react';
+import { getFirestore, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getAuth } from 'firebase/auth';
+import { useNavigate } from 'react-router-dom';
 
 const AddNewVehicle = () => {
-  const [formData, setFormData] = useState({
-    id: Date.now(), // Unique identifier for each vehicle
-    name: "",
-    price: "",
-    engine: "",
-    fuelType: "",
-    transmission: "",
-    mileage: "",
-    color: "",
-    tyreSize: "",
-    seatingCapacity: "",
-    images: [],
-  });
-
-  const [previewMode, setPreviewMode] = useState(false);
-  const [error, setError] = useState(null);
+  const [carVIN, setCarVIN] = useState('');
+  const [carName, setCarName] = useState('');
+  const [carCompany, setCarCompany] = useState('');
+  const [carPrice, setCarPrice] = useState('');
+  const [manufacturedYear, setManufacturedYear] = useState('');
+  const [carDesc, setCarDesc] = useState('');
+  const [carType, setCarType] = useState('');
+  const [carColor, setCarColor] = useState('');
+  const [carFuel, setCarFuel] = useState('');
+  const [ownersNum, setOwnersNum] = useState('');
+  const [carTransmission, setCarTransmission] = useState('');
+  const [engineCap, setEngineCap] = useState('');
+  const [seatCap, setSeatCap] = useState('');
+  const [carCondition, setCarCondition] = useState('');
+  const [location, setLocation] = useState('');
+  const [images, setImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [imageNames, setImageNames] = useState([]);
+  const [thumbnailImage, setThumbnailImage] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState('');
+  const [additionalFeatures, setAdditionalFeatures] = useState([]);
+  const [featureInput, setFeatureInput] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevState) => ({
-      ...prevState,
-      [name]: value,
-    }));
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    setImages([...images, ...files]);
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setImagePreviews([...imagePreviews, ...previews]);
+    const names = files.map((file) => file.name);
+    setImageNames([...imageNames, ...names]);
   };
 
-  const handleFileChange = (e) => {
-    try {
-      const files = Array.from(e.target.files);
-      if (files.length > 5) {
-        setError("You can upload a maximum of 5 images.");
-        return;
-      }
-      setFormData((prevState) => ({
-        ...prevState,
-        images: files,
-      }));
-    } catch (error) {
-      setError("Error uploading images: " + error.message);
+  const handleRemoveImage = (index) => {
+    const newImages = images.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    const newNames = imageNames.filter((_, i) => i !== index);
+    setImages(newImages);
+    setImagePreviews(newPreviews);
+    setImageNames(newNames);
+  };
+
+  const handleThumbnailChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setThumbnailImage(file);
+      setThumbnailPreview(URL.createObjectURL(file));
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleAddFeature = () => {
+    if (featureInput.trim()) {
+      setAdditionalFeatures([...additionalFeatures, featureInput.trim()]);
+      setFeatureInput('');
+    }
+  };
+
+  const handleRemoveFeature = (index) => {
+    const newFeatures = additionalFeatures.filter((_, i) => i !== index);
+    setAdditionalFeatures(newFeatures);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.price || !formData.engine) {
-      setError("Please fill in all required fields.");
+    setLoading(true);
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const dealerID = user ? user.uid : null;
+
+    if (!dealerID) {
+      alert('User not authenticated');
+      setLoading(false);
       return;
     }
-    setError(null); // Clear error if form is valid
-    setPreviewMode(true); // Switch to preview mode after submission
-  };
 
-  const handleEdit = () => {
-    setPreviewMode(false); // Allow editing
-  };
+    const db = getFirestore();
+    const storage = getStorage();
 
-  const handleFinalSave = async (e) => {
     try {
-      await addVehicleToFirestore(formData); // Save vehicle to Firestore
-      alert("Car details have been saved successfully!");
-      navigate("/DealershipDashboard"); // Redirect to the inventory list after saving
+      // Add initial car details to Firestore to get the carDetailsRef
+      const carDetailsRef = doc(collection(db, 'carDetails'), dealerID);
+      await setDoc(carDetailsRef, {
+        carVIN,
+        carName,
+        carCompany,
+        carPrice,
+        manufacturedYear,
+        carDesc,
+        carType,
+        carColor,
+        carFuel,
+        ownersNum,
+        carTransmission,
+        engineCap,
+        seatCap,
+        carCondition,
+        location,
+        additionalFeatures,
+        dealerID,
+      });
+
+      const carDetailsId = carDetailsRef.id;
+
+      // Upload images to Firebase Storage
+      const imageUrls = await Promise.all(
+        images.map(async (image) => {
+          const imageRef = ref(storage, `cars/${carDetailsId}/${image.name}`);
+          await uploadBytes(imageRef, image);
+          return await getDownloadURL(imageRef);
+        })
+      );
+
+      // Upload thumbnail image to Firebase Storage
+      let thumbnailUrl = '';
+      if (thumbnailImage) {
+        const thumbnailRef = ref(storage, `cars/${carDetailsId}/thumbnail_${thumbnailImage.name}`);
+        await uploadBytes(thumbnailRef, thumbnailImage);
+        thumbnailUrl = await getDownloadURL(thumbnailRef);
+      }
+
+      // Update car details with image URLs and thumbnail URL
+      await updateDoc(carDetailsRef, {
+        images: imageUrls,
+        thumbnailImg: thumbnailUrl,
+      });
+
+      // Add record to cars collection
+      await setDoc(doc(collection(db, 'cars'), carDetailsId), {
+        carID: carDetailsId,
+        dealerID,
+        carName,
+        carPrice,
+        priority: 0, // Default priority
+        ownersNum,
+        carFuel,
+        thumbnailImg: thumbnailUrl,
+      });
+
+      setLoading(false);
+      alert('Car details added successfully!');
+      navigate('/dealership/dashboard');
     } catch (error) {
-      setError("Error saving car details: " + error.message);
-      console.error("Error adding vehicle:", error);
+      setLoading(false);
+      console.error('Error adding car details:', error);
+      alert('Error adding car details. Please try again.');
     }
   };
 
   return (
-    <>
-      <Navbar />
-      <div className="max-w-4xl mx-auto p-6 bg-gray-100 rounded-lg shadow-lg">
-        {!previewMode ? (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <h2 className="text-2xl font-semibold mb-4">Add New Vehicle</h2>
-
-            {/* Car Name */}
-            <div>
-              <label className="block font-medium">Car Name:</label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              />
+    <div className='flex flex-col justify-center items-center bg-gray-100 p-6'>
+      <h1 className='text-4xl font-bold mb-6'>Add New Vehicle</h1>
+      <form className='flex flex-col bg-white p-6 rounded-lg shadow-lg min-w-[50%]' onSubmit={handleSubmit}>
+        <label className='mb-2 font-semibold'>Car VIN</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carVIN} onChange={(e) => setCarVIN(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Name</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carName} onChange={(e) => setCarName(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Company</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carCompany} onChange={(e) => setCarCompany(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Price</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carPrice} onChange={(e) => setCarPrice(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Manufactured Year</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={manufacturedYear} onChange={(e) => setManufacturedYear(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Description</label>
+        <textarea className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carDesc} onChange={(e) => setCarDesc(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Model</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carType} onChange={(e) => setCarType(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Color</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carColor} onChange={(e) => setCarColor(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Fuel</label>
+        <select className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carFuel} onChange={(e) => setCarFuel(e.target.value)} required>
+          <option value="">Select Fuel Type</option>
+          <option value="petrol">Petrol</option>
+          <option value="diesel">Diesel</option>
+          <option value="petrolHybrid">Petrol Hybrid</option>
+          <option value="dieselHybrid">Diesel Hybrid</option>
+          <option value="electric">Electric</option>
+        </select>
+        <label className='mb-2 font-semibold'>Number of Previous Owners</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={ownersNum} onChange={(e) => setOwnersNum(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Transmission</label>
+        <select className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carTransmission} onChange={(e) => setCarTransmission(e.target.value)} required>
+          <option value="">Select Transmission</option>
+          <option value="manual">Manual</option>
+          <option value="amt">AMT</option>
+          <option value="cvt">CVT</option>
+          <option value="electric">Electric</option>
+        </select>
+        <label className='mb-2 font-semibold'>Engine Capacity</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={engineCap} onChange={(e) => setEngineCap(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Seating Capacity</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={seatCap} onChange={(e) => setSeatCap(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Car Condition</label>
+        <select className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={carCondition} onChange={(e) => setCarCondition(e.target.value)} required>
+          <option value="">Select Condition</option>
+          <option value="poor">Poor</option>
+          <option value="average">Average</option>
+          <option value="good">Good</option>
+          <option value="excellent">Excellent</option>
+        </select>
+        <label className='mb-2 font-semibold'>Location</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' value={location} onChange={(e) => setLocation(e.target.value)} required />
+        <label className='mb-2 font-semibold'>Images</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' type="file" multiple onChange={handleImageChange} />
+        <div className='flex flex-wrap mb-4'>
+          {imagePreviews.map((src, index) => (
+            <div key={index} className='relative'>
+              <img src={src} alt={`Preview ${index}`} className='w-24 h-24 object-cover m-2' />
+              <button type="button" className='absolute top-0 right-0 bg-red-500 text-white rounded-full p-1' onClick={() => handleRemoveImage(index)}>X</button>
             </div>
-
-            {/* Price */}
-            <div>
-              <label className="block font-medium">Price (₹):</label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-
-            {/* Engine */}
-            <div>
-              <label className="block font-medium">Engine:</label>
-              <input
-                type="text"
-                name="engine"
-                value={formData.engine}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-
-            {/* Fuel Type */}
-            <div>
-              <label className="block font-medium">Fuel Type:</label>
-              <select
-                name="fuelType"
-                value={formData.fuelType}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              >
-                <option value="">Select fuel type</option>
-                <option value="Petrol">Petrol</option>
-                <option value="Diesel">Diesel</option>
-                <option value="Electric">Electric</option>
-              </select>
-            </div>
-
-            {/* Transmission */}
-            <div>
-              <label className="block font-medium">Transmission:</label>
-              <select
-                name="transmission"
-                value={formData.transmission}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              >
-                <option value="">Select transmission</option>
-                <option value="Manual">Manual</option>
-                <option value="Automatic">Automatic</option>
-              </select>
-            </div>
-
-            {/* Mileage */}
-            <div>
-              <label className="block font-medium">Mileage (kmpl):</label>
-              <input
-                type="number"
-                name="mileage"
-                value={formData.mileage}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-
-            {/* Color */}
-            <div>
-              <label className="block font-medium">Color:</label>
-              <input
-                type="text"
-                name="color"
-                value={formData.color}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-
-            {/* Tyre Size */}
-            <div>
-              <label className="block font-medium">Tyre Size (inches):</label>
-              <input
-                type="text"
-                name="tyreSize"
-                value={formData.tyreSize}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-
-            {/* Seating Capacity */}
-            <div>
-              <label className="block font-medium">Seating Capacity:</label>
-              <input
-                type="number"
-                name="seatingCapacity"
-                value={formData.seatingCapacity}
-                onChange={handleChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-
-            {/* Image Upload */}
-            <div>
-              <label className="block font-medium">Upload Car Images:</label>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileChange}
-                className="w-full p-2 border border-gray-300 rounded"
-              />
-            </div>
-
-            {error && <p className="text-red-600">{error}</p>}
-
-            <button
-              type="submit"
-              className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Preview Car Details
-            </button>
-          </form>
-        ) : (
-          <div>
-            <h2 className="text-2xl font-semibold mb-4">Preview Car Details</h2>
-
-            <div className="space-y-4">
-              <p><strong>Car Name:</strong> {formData.name}</p>
-              <p><strong>Price:</strong> ₹{formData.price}</p>
-              <p><strong>Engine:</strong> {formData.engine}</p>
-              <p><strong>Fuel Type:</strong> {formData.fuelType}</p>
-              <p><strong>Transmission:</strong> {formData.transmission}</p>
-              <p><strong>Mileage:</strong> {formData.mileage} kmpl</p>
-              <p><strong>Color:</strong> {formData.color}</p>
-              <p><strong>Tyre Size:</strong> {formData.tyreSize} inches</p>
-              <p><strong>Seating Capacity:</strong> {formData.seatingCapacity}</p>
-
-              <div>
-                <h3 className="font-medium">Uploaded Images</h3>
-                <div className="flex space-x-4">
-                  {formData.images.length > 0 ? (
-                    formData.images.map((img, index) => (
-                      <img
-                        key={index}
-                        src={URL.createObjectURL(img)}
-                        alt={`car-${index}`}
-                        className="w-32 h-20 object-cover"
-                      />
-                    ))
-                  ) : (
-                    <p>No images uploaded</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex space-x-4">
-                <button
-                  onClick={handleEdit}
-                  className="py-2 px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={handleFinalSave}
-                  className="py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  Final Save
-                </button>
-              </div>
-            </div>
+          ))}
+        </div>
+        <ul className='mb-4'>
+          {imageNames.map((name, index) => (
+            <li key={index} className='flex justify-between items-center mb-2'>
+              {name}
+            </li>
+          ))}
+        </ul>
+        <label className='mb-2 font-semibold'>Thumbnail Image</label>
+        <input className='border-2 border-gray-300 mb-4 p-2 rounded-lg' type="file" onChange={handleThumbnailChange} />
+        {thumbnailPreview && (
+          <div className='relative mb-4'>
+            <img src={thumbnailPreview} alt="Thumbnail Preview" className='w-24 h-24 object-cover m-2' />
           </div>
         )}
-      </div>
-    </>
+        <label className='mb-2 font-semibold'>Additional Features</label>
+        <div className='flex mb-4'>
+          <input className='border-2 border-gray-300 p-2 rounded-lg flex-grow' value={featureInput} onChange={(e) => setFeatureInput(e.target.value)} />
+          <button type="button" className='ml-2 border-2 rounded-lg text-white bg-green-500 hover:bg-green-700 p-2' onClick={handleAddFeature}>Add</button>
+        </div>
+        <ul className='mb-4'>
+          {additionalFeatures.map((feature, index) => (
+            <li key={index} className='flex justify-between items-center mb-2'>
+              {feature}
+              <button type="button" className='ml-2 border-2 rounded-lg text-white bg-red-500 hover:bg-red-700 p-2' onClick={() => handleRemoveFeature(index)}>Remove</button>
+            </li>
+          ))}
+        </ul>
+        <button className='border-2 rounded-lg text-white bg-blue-500 hover:bg-blue-700 p-4' type="submit" disabled={loading}>
+          {loading ? 'Saving...' : 'Save'}
+        </button>
+      </form>
+    </div>
   );
 };
 
