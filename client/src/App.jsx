@@ -1,13 +1,13 @@
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import UserHome from "./user/userHome";
-import SearchResults from "./user/searchResults";
-import SignIn from "./user/signUp";
-import WishList from "./user/wishList";
-import CarDetails from "./user/car-details"; 
+import UserHome from "./user/UserHome";
+import SearchResults from "./user/SearchResults";
+import SignIn from "./user/SignUp";
+import WishList from "./user/WishList";
+import CarDetails from "./user/Car-details"; 
 import CompareCars from './user/CompareCars';
 import MakeAnOffer from './user/MakeAnOffer';
-import Profile from "./user/userProfile";
-import DealershipSignIn from "./dealership/dealerLogin";
+import Profile from "./user/UserProfile";
+import DealershipSignIn from "./dealership/DealerLogin";
 import DealerRoutes from "./dealership/DealerRoutes";
 
 function App() {

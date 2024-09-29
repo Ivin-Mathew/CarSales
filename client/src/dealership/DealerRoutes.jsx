@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+// DealerRoutes.jsx
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import DealershipProfile from './dealerProfile';
+import { auth, db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+// Import the initialized auth
+import DealershipProfile from './DealerProfile';
 import DealershipDashboard from './DealershipDashboard';
 import GarageManagement from './GarageManagement';
 import AddNewVehicle from './AddNewVehicle';
@@ -14,22 +16,27 @@ const DealerRoutes = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const auth = getAuth();
-    const db = getFirestore();
-
-    onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
+        setIsAuthorized(true);
         const userDoc = doc(db, 'dealershipsInfo', user.email);
         const userSnapshot = await getDoc(userDoc);
-
         if (userSnapshot.exists()) {
-          const data = userSnapshot.data();
-          setIsAuthorized(true);
-          setIsProfileCompleted(data.isProfileCompleted);
+          const userData = userSnapshot.data();
+          setIsProfileCompleted(userData.isProfileCompleted);
+          console.log("Inside snapshot");
         }
+
+
+        // Check if profile is completed
+        // setIsProfileCompleted(true or false based on your logic);
+      } else {
+        setIsAuthorized(false);
       }
       setLoading(false);
     });
+
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
@@ -47,10 +54,10 @@ const DealerRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dealership/dashboard" />} />
-      <Route path="profile" element={<DealershipProfile />} />
+      <Route path="profile/*" element={<DealershipProfile />} />
       <Route path="dashboard" element={<DealershipDashboard />} />
-      <Route path="garageManagement" element={<GarageManagement />} />
-      <Route path="addNewVehicle" element={<AddNewVehicle />} />
+      <Route path="garageManagement/*" element={<GarageManagement />} />
+      <Route path="addNewVehicle/*" element={<AddNewVehicle />} />
     </Routes>
   );
 };

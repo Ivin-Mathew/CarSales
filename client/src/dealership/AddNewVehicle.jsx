@@ -139,7 +139,8 @@ const AddNewVehicle = () => {
         dealerID,
         carName,
         carPrice,
-        priority: 0, // Default priority
+        priority : 0, // Default priority
+        hidden : false,
         ownersNum,
         carFuel,
         thumbnailImg: thumbnailUrl,
