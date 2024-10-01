@@ -1,5 +1,5 @@
 // DealerRoutes.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -8,6 +8,7 @@ import DealershipProfile from './DealerProfile';
 import DealershipDashboard from './DealershipDashboard';
 import GarageManagement from './GarageManagement';
 import AddNewVehicle from './AddNewVehicle';
+import VehicleDetails from './VehicleDetails';
 
 const DealerRoutes = () => {
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,7 @@ const DealerRoutes = () => {
       <Route path="dashboard" element={<DealershipDashboard />} />
       <Route path="garageManagement/*" element={<GarageManagement />} />
       <Route path="addNewVehicle/*" element={<AddNewVehicle />} />
+      <Route path="manageVehicle/:carID" element={<VehicleDetails />} />
     </Routes>
   );
 };

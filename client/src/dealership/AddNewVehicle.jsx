@@ -86,8 +86,11 @@ const AddNewVehicle = () => {
     const storage = getStorage();
 
     try {
-      // Add initial car details to Firestore to get the carDetailsRef
-      const carDetailsRef = doc(collection(db, 'carDetails'), dealerID);
+      // Generate a unique document reference
+      const carDetailsRef = doc(collection(db, 'carDetails'));
+      const carDetailsId = carDetailsRef.id;
+
+      // Add initial car details to Firestore
       await setDoc(carDetailsRef, {
         carVIN,
         carName,
@@ -107,8 +110,6 @@ const AddNewVehicle = () => {
         additionalFeatures,
         dealerID,
       });
-
-      const carDetailsId = carDetailsRef.id;
 
       // Upload images to Firebase Storage
       const imageUrls = await Promise.all(
@@ -139,8 +140,8 @@ const AddNewVehicle = () => {
         dealerID,
         carName,
         carPrice,
-        priority : 0, // Default priority
-        hidden : false,
+        priority: 0, // Default priority
+        hidden: false,
         ownersNum,
         carFuel,
         thumbnailImg: thumbnailUrl,

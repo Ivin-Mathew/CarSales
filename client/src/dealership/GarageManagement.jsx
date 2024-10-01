@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db} from "../firebase"
+import { useState, useEffect } from 'react';
+import {  collection, getDocs } from 'firebase/firestore';
 import Navbar from './Navbar';
-
+import {auth, db} from "../firebase";
+import { useNavigate } from 'react-router-dom';
 
 function GarageManagement() {
   const [vehicles, setVehicles] = useState([]);
   const [hiddenVehicles, setHiddenVehicles] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const getVehicles = async () => {
@@ -17,9 +18,8 @@ function GarageManagement() {
           throw new Error('User not authenticated');
         }
 
-        const userID = user.uid;
-        const q = query(collection(db, 'cars'), where('userID', '==', userID));
-        const querySnapshot = await getDocs(q);
+        /* const userID = user.uid; */
+        const querySnapshot = await getDocs(collection(db, 'cars'));
 
         const vehiclesList = [];
         querySnapshot.forEach((doc) => {
@@ -37,18 +37,22 @@ function GarageManagement() {
     getVehicles();
   }, []);
 
+  const handleCardClick = (carID) => {
+    navigate(`/dealership/manageVehicle/${carID}`);
+  };
+
   return (
     <>
       <Navbar />
       <div className="container mx-auto">
         <h2 className="text-4xl font-bold mb-6">Inventory</h2>
-        <InventoryList vehicles={vehicles} hiddenVehicles={hiddenVehicles} />
+        <InventoryList vehicles={vehicles} hiddenVehicles={hiddenVehicles} onCardClick={handleCardClick}/>
       </div>
     </>
   );
 }
 
-const InventoryList = ({ vehicles, hiddenVehicles }) => {
+const InventoryList = ({ vehicles, hiddenVehicles, onCardClick }) => {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">All cars</h2>
@@ -57,16 +61,16 @@ const InventoryList = ({ vehicles, hiddenVehicles }) => {
           <p>No cars available.</p>
         ) : (
           vehicles.map((vehicle) => (
-            <div key={vehicle.id} className="border border-gray-300 rounded-lg p-4 text-center transition-transform duration-300 ease-in-out hover:scale-105">
-              {vehicle.images && vehicle.images.length > 0 && (
+            <div key={vehicle.id} className="border border-gray-300 rounded-lg p-4 text-center transition-transform duration-300 ease-in-out hover:scale-105" onClick={()=> onCardClick(vehicle.carID)}>
                 <img
-                  src={vehicle.images[0]}
+                  src={vehicle.thumbnailImg}
                   alt="car"
-                  className="w-full h-auto rounded-md mb-4"
+                  className="w-[20rem] h-auto rounded-md mb-4 fit"
                 />
-              )}
-              <p className="text-lg font-bold mb-2">{vehicle.name}</p>
-              <p className="text-gray-600">${vehicle.model}</p>
+              
+              <p className="text-lg font-bold mb-2">{vehicle.carName}</p>
+              <p className="text-gray-600">${vehicle.carPrice}</p>
+              <p className="text-gray-600">{vehicle.carFuel}</p>
             </div>
           ))
         )}
@@ -78,7 +82,7 @@ const InventoryList = ({ vehicles, hiddenVehicles }) => {
           <p>No hidden cars.</p>
         ) : (
           hiddenVehicles.map((vehicle) => (
-            <div key={vehicle.id} className="border border-gray-300 rounded-lg p-4 text-center transition-transform duration-300 ease-in-out hover:scale-105">
+            <div key={vehicle.id} className="border border-gray-300 rounded-lg p-4 text-center transition-transform duration-300 ease-in-out hover:scale-105" onClick={()=> onCardClick(vehicle.carID)}>
               {vehicle.images && vehicle.images.length > 0 && (
                 <img
                   src={vehicle.images[0]}
