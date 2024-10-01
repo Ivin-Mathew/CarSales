@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getFirestore, collection, query, where, orderBy, limit, startAfter, getDocs } from 'firebase/firestore';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import Navbar from '../components/Navbar';
-import sampleImage from '../assets/CarPlaceholdr.jpg';
 import Card1 from '../components/Card1';
-
-const carData = [
-  { id: 1, image: sampleImage, name: 'CAR1', price: 2000 },
-  { id: 2, image: sampleImage, name: 'CAR2', price: 2000 },
-  { id: 3, image: sampleImage, name: 'CAR3', price: 2000 },
-  { id: 4, image: sampleImage, name: 'CAR4', price: 2000 },
-  { id: 5, image: sampleImage, name: 'CAR5', price: 2000 },
-  { id: 6, image: sampleImage, name: 'CAR6', price: 2000 },
-];
 
 const CarSales = () => {
   const [filters, setFilters] = useState(['Maruthi', 'Power steering', 'Rear cam']);
@@ -38,26 +29,77 @@ const CarSales = () => {
       CNG: true,
     },
   });
-  const [filteredCars, setFilteredCars] = useState(carData);
+  const [filteredCars, setFilteredCars] = useState([]);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [page, setPage] = useState(1);
 
   const location = useLocation();
   const navigate = useNavigate();
+  const db = getFirestore();
 
   useEffect(() => {
+    fetchCars();
+  }, [location.search, budget, checkboxes]);
+
+  const fetchCars = async () => {
     const queryParams = new URLSearchParams(location.search);
     const searchTerm = queryParams.get('query') || '';
 
-    const filtered = carData.filter(car =>
-      car.name.toLowerCase().includes(searchTerm.toLowerCase())
+    let carQuery = query(
+      collection(db, 'cars'),
+      where('hidden', '==', false),
+      orderBy('priority'),
+      limit(20)
     );
 
-    setFilteredCars(filtered);
-  }, [location.search]);
+    if (searchTerm) {
+      carQuery = query(
+        collection(db, 'cars'),
+        where('hidden', '==', false),
+        where('carName', '>=', searchTerm),
+        where('carName', '<=', searchTerm + '\uf8ff'),
+        orderBy('carName'),
+        orderBy('priority'),
+        limit(20)
+      );
+    }
+
+    // Apply budget filter
+    carQuery = query(
+      carQuery,
+      where('carPrice', '>=', budget[0]),
+      where('carPrice', '<=', budget[1])
+    );
+
+    // Apply basic details filter
+    if (checkboxes.basicDetails.insurance) {
+      carQuery = query(carQuery, where('insurance', '==', true));
+    }
+    if (checkboxes.basicDetails['no accident']) {
+      carQuery = query(carQuery, where('noAccident', '==', true));
+    }
+
+    // Apply owners filter
+    const ownersFilters = Object.keys(checkboxes.owners).filter(key => checkboxes.owners[key]);
+    if (ownersFilters.length > 0) {
+      carQuery = query(carQuery, where('ownersNum', 'in', ownersFilters.map(owner => parseInt(owner))));
+    }
+
+    // Apply fuel filter
+    const fuelFilters = Object.keys(checkboxes.fuel).filter(key => checkboxes.fuel[key]);
+    if (fuelFilters.length > 0) {
+      carQuery = query(carQuery, where('carFuel', 'in', fuelFilters));
+    }
+
+    const carSnapshot = await getDocs(carQuery);
+    const cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setFilteredCars(cars);
+    setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
+  };
 
   const handleSliderChange = value => {
     setBudget(value);
   };
-
 
   const handleAddFilter = (e) => {
     e.preventDefault();
@@ -90,6 +132,39 @@ const CarSales = () => {
     navigate(`/search?query=${search}`);
   };
 
+  const handleNextPage = async () => {
+    let carQuery = query(
+      collection(db, 'cars'),
+      where('hidden', '==', false),
+      orderBy('priority'),
+      startAfter(lastVisible),
+      limit(20)
+    );
+
+    const carSnapshot = await getDocs(carQuery);
+    const cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setFilteredCars(cars);
+    setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
+    setPage(page + 1);
+  };
+
+  const handlePreviousPage = async () => {
+    if (page > 1) {
+      let carQuery = query(
+        collection(db, 'cars'),
+        where('hidden', '==', false),
+        orderBy('priority'),
+        limit(20 * (page - 1))
+      );
+
+      const carSnapshot = await getDocs(carQuery);
+      const cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setFilteredCars(cars.slice(-20));
+      setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
+      setPage(page - 1);
+    }
+  };
+
   return (
     <div>
       <Navbar />
@@ -97,16 +172,15 @@ const CarSales = () => {
         <div className="w-1/5 pr-5 flex flex-col m-1 border-2 border-[#bcbcbc] rounded-md p-4">
           <div>
             {filters.map((filter, index) => (
-              
               <div key={index} className=' m-2 bg-gray-200 rounded px-1 flex-row flex w-fit'>
                 <span className="">
                   {filter}
                 </span>
-              <div onClick={() => handleRemoveFilter(filter)} className='text-md  hover:cursor-pointer text-start ml-2'>&times;</div>
+                <div onClick={() => handleRemoveFilter(filter)} className='text-md  hover:cursor-pointer text-start ml-2'>&times;</div>
               </div>
             ))}
           </div>
-          <form  onSubmit={handleAddFilter} className='flex my-4'>
+          <form onSubmit={handleAddFilter} className='flex my-4'>
             <input
               type="text"
               value={newFilter}
@@ -202,13 +276,28 @@ const CarSales = () => {
                 </button>
               ))}
             </div>
-            </div>
+          </div>
           <div className="flex flex-wrap gap-4">
             {filteredCars.map((car, index) => (
               <div key={index}>
-                <Card1 img={car.image} title={car.name} text={car.price} />
+                <Card1 img={car.thumbnailImg} title={car.carName} text={`₹${car.carPrice}`} />
               </div>
             ))}
+          </div>
+          <div className="flex justify-between mt-4">
+            <button
+              onClick={handlePreviousPage}
+              className="bg-gray-300 text-black p-2 rounded"
+              disabled={page === 1}
+            >
+              Previous
+            </button>
+            <button
+              onClick={handleNextPage}
+              className="bg-gray-300 text-black p-2 rounded"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
