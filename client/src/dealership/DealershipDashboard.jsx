@@ -17,6 +17,7 @@ const DealershipDashboard = () => {
   const [selectedTime, setSelectedTime] = useState("All time");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [userData1, setUserData1] = useState([]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -25,9 +26,11 @@ const DealershipDashboard = () => {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         const userDoc = doc(db, 'dealershipsInfo', user.email);
+        
         const userSnapshot = await getDoc(userDoc);
         if (userSnapshot.exists()) {
           const userData = userSnapshot.data();
+          setUserData1(userData);
           if (userData.isDealer === true) {
             if (userData.isProfileCompleted === false){
               navigate("/dealership/profile");
@@ -54,7 +57,6 @@ const DealershipDashboard = () => {
     { time: "Past month", interactions: 400 },
     { time: "Past week", interactions: 50 },
   ];
-
   // Sample data based on selected time period (you can modify this to match your needs)
   const displayedData = [
     { name: "Jan", interactions: 100 },
@@ -65,17 +67,17 @@ const DealershipDashboard = () => {
     { name: "Jun", interactions: 300 },
     { name: "Jul", interactions: 100 },
   ];
-
   if (loading) {
     return <div>Loading...</div>;
   }
+
 
   return (
     <>
       <Navbar />
       <div className="flex flex-col items-center justify-center p-5 max-w-3xl mx-auto text-center">
         {/* Welcome Message */}
-        <h1 className="text-2xl font-bold mb-5">Welcome, {"Dealership"}</h1>
+        <h1 className="text-2xl font-bold mb-5">Welcome, {userData1.dealershipName}</h1>
 
         {/* Buttons */}
         <div className="flex gap-5 mb-5">
@@ -95,7 +97,7 @@ const DealershipDashboard = () => {
 
         {/* Boost Your Cars Button */}
         <div className="mb-5">
-          <button className="px-10 py-4 bg-blue-500 text-white rounded-lg cursor-pointer text-lg transition-colors duration-300 hover:bg-blue-700">
+          <button className="px-10 py-4 bg-blue-500 text-white rounded-lg cursor-pointer text-lg transition-colors duration-300 hover:bg-blue-700" onClick={() => navigate('/dealership/boost')}>
             Boost your cars!
           </button>
         </div>

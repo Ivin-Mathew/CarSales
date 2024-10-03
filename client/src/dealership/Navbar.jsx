@@ -21,7 +21,7 @@ const Navbar = () => {
         websiteName
       </div>
       <div className="flex space-x-4">
-        <Link to="/dealership/inventory" className="text-white hover:text-gray-400">Inventory</Link>
+        <Link to="/dealership/garageManagement" className="text-white hover:text-gray-400">Inventory</Link>
         <Link to="/dealership/boost" className="text-white hover:text-gray-400">Boost</Link>
         <Link to="/dealership/profile" className="text-white hover:text-gray-400">Profile</Link>
       </div>

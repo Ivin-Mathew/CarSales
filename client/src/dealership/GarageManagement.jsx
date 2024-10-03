@@ -19,7 +19,7 @@ function GarageManagement() {
         }
 
         /* const userID = user.uid; */
-        const querySnapshot = await getDocs(collection(db, 'cars'));
+        const querySnapshot = await getDocs(collection(db, 'carDetails'));
 
         const vehiclesList = [];
         querySnapshot.forEach((doc) => {
@@ -83,15 +83,15 @@ const InventoryList = ({ vehicles, hiddenVehicles, onCardClick }) => {
         ) : (
           hiddenVehicles.map((vehicle) => (
             <div key={vehicle.id} className="border border-gray-300 rounded-lg p-4 text-center transition-transform duration-300 ease-in-out hover:scale-105" onClick={()=> onCardClick(vehicle.carID)}>
-              {vehicle.images && vehicle.images.length > 0 && (
                 <img
-                  src={vehicle.images[0]}
+                  src={vehicle.thumbnailImg}
                   alt="car"
-                  className="w-full h-auto rounded-md mb-4"
+                  className="w-[20rem] h-auto rounded-md mb-4 fit"
                 />
-              )}
-              <p className="text-lg font-bold mb-2">{vehicle.name}</p>
-              <p className="text-gray-600">${vehicle.model}</p>
+              
+              <p className="text-lg font-bold mb-2">{vehicle.carName}</p>
+              <p className="text-gray-600">${vehicle.carPrice}</p>
+              <p className="text-gray-600">{vehicle.carFuel}</p>
             </div>
           ))
         )}

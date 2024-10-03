@@ -1,300 +1,256 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getFirestore, collection, query, where, orderBy, limit, startAfter, getDocs } from 'firebase/firestore';
-import Slider from 'rc-slider';
-import 'rc-slider/assets/index.css';
 import Navbar from '../components/Navbar';
 import Card1 from '../components/Card1';
 
 const CarSales = () => {
-  const [filters, setFilters] = useState(['Maruthi', 'Power steering', 'Rear cam']);
-  const [budget, setBudget] = useState([10000, 2000000]);
-  const [newFilter, setNewFilter] = useState('');
-  const [mainFilters, setMainFilters] = useState(['New', 'Price Ascending', 'Price Descending', 'Rating']);
+  // State variables
   const [search, setSearch] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('New');
-  const [checkboxes, setCheckboxes] = useState({
-    basicDetails: {
-      'insurance': true,
-      'no accident': true,
-    },
-    owners: {
-      '1st': true,
-      '2nd': true,
-      '3rd': true,
-    },
-    fuel: {
-      Petrol: true,
-      Diesel: true,
-      CNG: true,
-    },
-  });
   const [filteredCars, setFilteredCars] = useState([]);
   const [lastVisible, setLastVisible] = useState(null);
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
   const db = getFirestore();
 
+  // Synchronize search state with URL query parameter
   useEffect(() => {
-    fetchCars();
-  }, [location.search, budget, checkboxes]);
-
-  const fetchCars = async () => {
     const queryParams = new URLSearchParams(location.search);
     const searchTerm = queryParams.get('query') || '';
+    setSearch(searchTerm);
+  }, [location.search]);
 
-    let carQuery = query(
-      collection(db, 'cars'),
-      where('hidden', '==', false),
-      orderBy('priority'),
-      limit(20)
-    );
+  // Fetch cars whenever location.search changes
+  useEffect(() => {
+    fetchCars();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
+  const fetchCars = async () => {
+    setLoading(true);
+    const queryParams = new URLSearchParams(location.search);
+    const searchTerm = queryParams.get('query') || '';
+    const searchTermLower = searchTerm.toLowerCase(); // Convert to lowercase for consistency
+
+    console.log('Fetching cars with search term:', searchTerm);
+
+    let carQuery;
 
     if (searchTerm) {
+      // Perform prefix search on carNameLower
       carQuery = query(
-        collection(db, 'cars'),
+        collection(db, 'carDetails'),
         where('hidden', '==', false),
-        where('carName', '>=', searchTerm),
-        where('carName', '<=', searchTerm + '\uf8ff'),
-        orderBy('carName'),
-        orderBy('priority'),
+        where('carNameLower', '>=', searchTermLower),
+        where('carNameLower', '<=', searchTermLower + '\uf8ff'),
+        orderBy('carNameLower'),
+        orderBy('priority', 'desc'),
+        limit(20)
+      );
+    } else {
+      // Default query without search
+      carQuery = query(
+        collection(db, 'carDetails'),
+        where('hidden', '==', false),
+        orderBy('priority', 'desc'),
         limit(20)
       );
     }
 
-    // Apply budget filter
-    carQuery = query(
-      carQuery,
-      where('carPrice', '>=', budget[0]),
-      where('carPrice', '<=', budget[1])
-    );
+    try {
+      const carSnapshot = await getDocs(carQuery);
+      if (carSnapshot.empty) {
+        console.log('No matching documents.');
+        setFilteredCars([]); // Clear previous results
+      } else {
+        let cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Apply basic details filter
-    if (checkboxes.basicDetails.insurance) {
-      carQuery = query(carQuery, where('insurance', '==', true));
+        console.log('Fetched cars:', cars); // Log fetched cars
+        setFilteredCars(cars);
+        setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
+      }
+    } catch (error) {
+      console.error('Error fetching cars:', error);
+      setFilteredCars([]); // Clear previous results on error
+    } finally {
+      console.log('Setting loading to false');
+      setLoading(false);
     }
-    if (checkboxes.basicDetails['no accident']) {
-      carQuery = query(carQuery, where('noAccident', '==', true));
-    }
-
-    // Apply owners filter
-    const ownersFilters = Object.keys(checkboxes.owners).filter(key => checkboxes.owners[key]);
-    if (ownersFilters.length > 0) {
-      carQuery = query(carQuery, where('ownersNum', 'in', ownersFilters.map(owner => parseInt(owner))));
-    }
-
-    // Apply fuel filter
-    const fuelFilters = Object.keys(checkboxes.fuel).filter(key => checkboxes.fuel[key]);
-    if (fuelFilters.length > 0) {
-      carQuery = query(carQuery, where('carFuel', 'in', fuelFilters));
-    }
-
-    const carSnapshot = await getDocs(carQuery);
-    const cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setFilteredCars(cars);
-    setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
   };
 
-  const handleSliderChange = value => {
-    setBudget(value);
-  };
+  // Handlers
+  const handleSearchChange = useCallback((e) => {
+    setSearch(e.target.value);
+  }, []);
 
-  const handleAddFilter = (e) => {
+  const handleSearchSubmit = useCallback((e) => {
     e.preventDefault();
-    if (newFilter.trim()) {
-      setFilters([...filters, newFilter.trim()]);
-      setNewFilter('');
-    }
-  };
+    // Encode the search term to handle special characters
+    navigate(`/search?query=${encodeURIComponent(search)}`);
+  }, [search, navigate]);
 
-  const handleFilterClick = (filter) => {
-    setSelectedFilter(filter);
-  }
-
-  const handleRemoveFilter = filter => {
-    setFilters(filters.filter(f => f !== filter));
-  };
-
-  const handleCheckboxChange = (group, checkbox) => {
-    setCheckboxes({
-      ...checkboxes,
-      [group]: {
-        ...checkboxes[group],
-        [checkbox]: !checkboxes[group][checkbox],
-      },
-    });
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    navigate(`/search?query=${search}`);
-  };
-
+  // Pagination Handlers
   const handleNextPage = async () => {
-    let carQuery = query(
-      collection(db, 'cars'),
-      where('hidden', '==', false),
-      orderBy('priority'),
-      startAfter(lastVisible),
-      limit(20)
-    );
+    if (!lastVisible) return; // Prevent fetching if there's no lastVisible
 
-    const carSnapshot = await getDocs(carQuery);
-    const cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setFilteredCars(cars);
-    setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
-    setPage(page + 1);
+    setLoading(true);
+    let carQuery;
+
+    const queryParams = new URLSearchParams(location.search);
+    const searchTerm = queryParams.get('query') || '';
+    const searchTermLower = searchTerm.toLowerCase();
+
+    if (searchTerm) {
+      carQuery = query(
+        collection(db, 'carDetails'),
+        where('hidden', '==', false),
+        where('carNameLower', '>=', searchTermLower),
+        where('carNameLower', '<=', searchTermLower + '\uf8ff'),
+        orderBy('carNameLower'),
+        orderBy('priority', 'desc'),
+        startAfter(lastVisible),
+        limit(20)
+      );
+    } else {
+      carQuery = query(
+        collection(db, 'carDetails'),
+        where('hidden', '==', false),
+        orderBy('priority', 'desc'),
+        startAfter(lastVisible),
+        limit(20)
+      );
+    }
+
+    try {
+      const carSnapshot = await getDocs(carQuery);
+      if (carSnapshot.empty) {
+        console.log('No more matching documents.');
+      } else {
+        const cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Fetched cars:', cars); // Log fetched cars
+
+        setFilteredCars(prevCars => [...prevCars, ...cars]);
+        setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
+        setPage(prevPage => prevPage + 1);
+      }
+    } catch (error) {
+      console.error('Error fetching cars:', error);
+    } finally {
+      console.log('Setting loading to false');
+      setLoading(false);
+    }
   };
 
   const handlePreviousPage = async () => {
-    if (page > 1) {
-      let carQuery = query(
-        collection(db, 'cars'),
+    if (page <= 1) return; // Prevent going below page 1
+
+    setLoading(true);
+    let carQuery;
+
+    const queryParams = new URLSearchParams(location.search);
+    const searchTerm = queryParams.get('query') || '';
+    const searchTermLower = searchTerm.toLowerCase();
+
+    if (searchTerm) {
+      carQuery = query(
+        collection(db, 'carDetails'),
         where('hidden', '==', false),
-        orderBy('priority'),
+        where('carNameLower', '>=', searchTermLower),
+        where('carNameLower', '<=', searchTermLower + '\uf8ff'),
+        orderBy('carNameLower'),
+        orderBy('priority', 'desc'),
         limit(20 * (page - 1))
       );
+    } else {
+      carQuery = query(
+        collection(db, 'carDetails'),
+        where('hidden', '==', false),
+        orderBy('priority', 'desc'),
+        limit(20 * (page - 1))
+      );
+    }
 
+    try {
       const carSnapshot = await getDocs(carQuery);
-      const cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setFilteredCars(cars.slice(-20));
-      setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
-      setPage(page - 1);
+      if (carSnapshot.empty) {
+        console.log('No matching documents.');
+      } else {
+        const cars = carSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('Fetched cars:', cars); // Log fetched cars
+
+        setFilteredCars(cars.slice(-20)); // Get the last 20 items for the previous page
+        setLastVisible(carSnapshot.docs[carSnapshot.docs.length - 1]);
+        setPage(prevPage => prevPage - 1);
+      }
+    } catch (error) {
+      console.error('Error fetching cars:', error);
+    } finally {
+      console.log('Setting loading to false');
+      setLoading(false);
     }
   };
 
+  // Render the component
   return (
     <div>
       <Navbar />
-      <div className="flex p-5">
-        <div className="w-1/5 pr-5 flex flex-col m-1 border-2 border-[#bcbcbc] rounded-md p-4">
-          <div>
-            {filters.map((filter, index) => (
-              <div key={index} className=' m-2 bg-gray-200 rounded px-1 flex-row flex w-fit'>
-                <span className="">
-                  {filter}
-                </span>
-                <div onClick={() => handleRemoveFilter(filter)} className='text-md  hover:cursor-pointer text-start ml-2'>&times;</div>
-              </div>
-            ))}
-          </div>
-          <form onSubmit={handleAddFilter} className='flex my-4'>
-            <input
-              type="text"
-              value={newFilter}
-              onChange={e => setNewFilter(e.target.value)}
-              placeholder="Type filters"
-              className="p-2 border border-gray-300 rounded"
-            />
-            <button
-              onClick={handleAddFilter}
-              className="ml-2 bg-black text-white rounded"
-            >
-              Add Filter
-            </button>
-          </form>
-          
-          <div className="mb-4">
-            <p className='mb-1'>Basic Details</p>
-            {Object.keys(checkboxes.basicDetails).map(key => (
-              <label className="block mb-1" key={key}>
-                <input
-                  type="checkbox"
-                  checked={checkboxes.basicDetails[key]}
-                  onChange={() => handleCheckboxChange('basicDetails', key)}
-                  className="mr-1 accent-black h-3"
-                />{' '}
-                {key}
-              </label>
-            ))}
-          </div>
-          <div className="mb-4">
-            <p>Budget ₹{budget[0]} - ₹{budget[1]}</p>
-            <Slider
-              trackStyle={{ backgroundColor: '#000' }}
-              range
-              min={10000}
-              max={2000000}
-              value={budget}
-              onChange={handleSliderChange}
-              defaultValue={[10000, 2000000]}
-              handleStyle={{
-                borderColor: '#000',
-              }}
-            />
-          </div>
-          <div className="mb-4">
-            <p className='mb-1'>Owners</p>
-            {Object.keys(checkboxes.owners).map(key => (
-              <label className="block mb-1" key={key}>
-                <input
-                  type="checkbox"
-                  checked={checkboxes.owners[key]}
-                  onChange={() => handleCheckboxChange('owners', key)}
-                  className="mr-1 accent-black h-3"
-                />{' '}
-                {key}
-              </label>
-            ))}
-          </div>
-          <div className="mb-4">
-            <p className='mb-1'>Fuel</p>
-            {Object.keys(checkboxes.fuel).map(key => (
-              <label className="block mb-1" key={key}>
-                <input
-                  type="checkbox"
-                  checked={checkboxes.fuel[key]}
-                  onChange={() => handleCheckboxChange('fuel', key)}
-                  className="mr-1 accent-black h-3"
-                />{' '}
-                {key}
-              </label>
-            ))}
-          </div>
+      {loading && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="text-white text-2xl">Loading...</div>
         </div>
-        <div className="w-4/5 pl-5">
-          <div className="flex flex-row justify-between">
-            <form onSubmit={handleSearch} className='w-2/3'>
+      )}
+      <div className={`flex p-5 ${loading ? 'opacity-50' : ''}`}>
+        {/* Main Content */}
+        <div className="w-full pl-5">
+          {/* Search Form */}
+          <div className="flex flex-row justify-between mb-4">
+            <form onSubmit={handleSearchSubmit} className='w-full flex items-center'>
               <input
                 type="text"
-                placeholder="Search"
-                className="w-3/4 py-2 px-4 h-fit rounded-3xl border border-gray-300"
-                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by car name"
+                className="w-full py-2 px-4 h-fit rounded-3xl border border-gray-300"
+                value={search}
+                onChange={handleSearchChange}
+                required
               />
+              <button
+                type="submit"
+                className="ml-2 bg-blue-500 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition duration-300"
+              >
+                Search
+              </button>
             </form>
-            
-            <div className="flex justify-start space-x-4 mb-4">
-              {mainFilters.map((filter, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleFilterClick(filter)}
-                  className={`p-2 h-fit rounded ${selectedFilter === filter ? 'bg-black text-white' : 'bg-gray-200 text-black'}`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
           </div>
+
+          {/* Car Listings */}
           <div className="flex flex-wrap gap-4">
-            {filteredCars.map((car, index) => (
-              <div key={index}>
-                <Card1 img={car.thumbnailImg} title={car.carName} text={`₹${car.carPrice}`} />
-              </div>
-            ))}
+            {filteredCars.length > 0 ? (
+              filteredCars.map((car) => (
+                <div key={car.id}>
+                  <Card1 img={car.thumbnailImg} title={car.carName} text={`₹${car.carPrice}`} id={car.id} />
+                </div>
+              ))
+            ) : (
+              <p>No cars match your search criteria.</p>
+            )}
           </div>
+
+          {/* Pagination Controls */}
           <div className="flex justify-between mt-4">
             <button
               onClick={handlePreviousPage}
-              className="bg-gray-300 text-black p-2 rounded"
-              disabled={page === 1}
+              className="bg-gray-300 text-black p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={page === 1 || loading}
             >
               Previous
             </button>
             <button
               onClick={handleNextPage}
-              className="bg-gray-300 text-black p-2 rounded"
+              className="bg-gray-300 text-black p-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
             >
               Next
             </button>
